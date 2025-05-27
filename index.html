@@ -23,17 +23,25 @@
       { attribution: '&copy; OpenStreetMap contributors' }
     ).addTo(map);
 
-    // 2. Handle location found
+    // 2. Define a bench icon (SVG from OSM Wiki, public domain)
+    const benchIcon = L.icon({
+      iconUrl: 'https://wiki.openstreetmap.org/w/images/6/60/Amenity_bench.svg',
+      iconSize:     [32, 32], // size of the icon
+      iconAnchor:   [16, 32], // point of the icon which will correspond to marker's location
+      popupAnchor:  [0, -32]  // point from which the popup should open relative to the icon anchor
+    });
+
+    // 3. Handle location found
     function onLocationFound(position) {
       const { latitude: lat, longitude: lng } = position.coords;
       map.setView([lat, lng], 15);
       L.circle([lat, lng], { radius: 25 }).addTo(map)
         .bindPopup('You are here').openPopup();
 
-      // 3. Query Overpass for benches
+      // 4. Query Overpass for benches within 1.5 km
       const overpassQuery = `
         [out:json][timeout:25];
-        node["amenity"="bench"](around:500,${lat},${lng});
+        node["amenity"="bench"](around:1500,${lat},${lng});
         out body;
       `;
       fetch('https://overpass-api.de/api/interpreter', {
@@ -50,19 +58,19 @@
       alert('Location error: ' + err.message);
     }
 
-    // 4. Add bench markers
+    // 5. Add bench markers with custom icon
     function addBenchesToMap(elements) {
       elements.forEach(el => {
         if (el.lat && el.lon) {
           const name = el.tags?.name || 'Bench';
-          L.marker([el.lat, el.lon])
+          L.marker([el.lat, el.lon], { icon: benchIcon })
             .addTo(map)
             .bindPopup(name);
         }
       });
     }
 
-    // 5. Request user location
+    // 6. Request user location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         onLocationFound,

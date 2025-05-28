@@ -38,8 +38,12 @@
       L.circle([lat, lng], { radius: 25 }).addTo(map)
         .bindPopup('You are here').openPopup();
 
-      // 4. Query Overpass for benches within 1.5 km
-      const overpassQuery = `
+      // 4. Query Overpass for benches within 1.5 km for the given coordinates
+      queryBenches(lat, lng);
+    }
+
+    function queryBenches(lat, lng) {
+       const overpassQuery = `
         [out:json][timeout:25];
         node["amenity"="bench"](around:1500,${lat},${lng});
         out body;
@@ -51,7 +55,8 @@
       })
         .then(res => res.json())
         .then(data => addBenchesToMap(data.elements))
-        .catch(err => console.error('Overpass error:', err));
+        .catch(err => console.error('Overpass error:', err));      
+
     }
 
     function onLocationError(err) {
@@ -80,6 +85,11 @@
     } else {
       alert('Geolocation not supported by your browser.');
     }
+
+    // 7. Add a map click listener to query benches at the clicked location
+    map.on('click', function(e) {
+      queryBenches(e.latlng.lat, e.latlng.lng);
+    });
   </script>
 </body>
 </html>

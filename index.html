@@ -77,6 +77,19 @@
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
+    // Center map on user's current location immediately on load
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          map.setView([lat, lng], 15);
+        },
+        err => {
+          console.warn('Geolocation not available or permission denied on load');
+        }
+      );
+    }
+
     // Layer group to easily clear old markers
     const markersLayer = L.layerGroup().addTo(map);
 

@@ -7,7 +7,6 @@
   <!-- Leaflet core -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Tailwind Play CDN → generates only the classes used in this file at runtime -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     html,
@@ -35,26 +34,37 @@
   <div id="map"></div>
 
   <!-- Category selection modal -->
-  <div id="categoryModal" class="fixed inset-0 flex flex-col items-center justify-center bg-white/80 z-[1000]">
-    <h1 class="mb-4 text-xl font-semibold">Kategorie wählen</h1>
-    <div class="flex flex-col w-72 gap-2">
-      <button data-category="bench" class="flex items-center gap-3 py-4 px-6 w-full rounded-lg hover:bg-gray-100">
-        <img src="https://wiki.openstreetmap.org/w/images/6/60/Amenity_bench.svg" alt="Bench Icon" class="w-8 h-8" />
-        <span class="text-lg font-medium">Bänke</span>
+  <div id="categoryModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-20 backdrop-blur-sm z-[1000]">
+    <div class="relative bg-white rounded-xl shadow-xl p-6 w-80 mx-4 max-w-full">
+      <button id="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
       </button>
-      <button data-category="glass" class="flex items-center gap-3 py-4 px-6 w-full rounded-lg hover:bg-gray-100">
-        <img src="https://wiki.openstreetmap.org/w/images/1/16/Recycling-16.svg" alt="Recycling Icon" class="w-8 h-8" />
-        <span class="text-lg font-medium">Altglas‑Container</span>
-      </button>
-      <button data-category="defib" class="flex items-center gap-3 py-4 px-6 w-full rounded-lg hover:bg-gray-100">
-        <img src="https://wiki.openstreetmap.org/w/images/2/2c/Emergency_aed_svg.svg" alt="Defibrillator Icon"
-          class="w-8 h-8" />
-        <span class="text-lg font-medium">Defibrillatoren</span>
-      </button>
-      <button data-category="postbox" class="flex items-center gap-3 py-4 px-6 w-full rounded-lg hover:bg-gray-100">
-        <img src="https://wiki.openstreetmap.org/w/images/d/d4//Post_box-12.svg" alt="Postbox Icon" class="w-8 h-8" />
-        <span class="text-lg font-medium">Briefkästen</span>
-      </button>
+      <h1 class="mb-4 text-2xl font-bold text-gray-800 text-center">Kategorie wählen</h1>
+      <div class="flex flex-col gap-4">
+        <button data-category="bench"
+          class="flex items-center gap-3 py-3 px-4 w-full rounded-md border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition">
+          <img src="https://wiki.openstreetmap.org/w/images/6/60/Amenity_bench.svg" alt="Bench Icon" class="w-8 h-8" />
+          <span class="text-lg font-medium">Bänke</span>
+        </button>
+        <button data-category="glass"
+          class="flex items-center gap-3 py-3 px-4 w-full rounded-md border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition">
+          <img src="https://wiki.openstreetmap.org/w/images/1/16/Recycling-16.svg" alt="Recycling Icon" class="w-8 h-8" />
+          <span class="text-lg font-medium">Altglas-Container</span>
+        </button>
+        <button data-category="defib"
+          class="flex items-center gap-3 py-3 px-4 w-full rounded-md border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition">
+          <img src="https://wiki.openstreetmap.org/w/images/2/2c/Emergency_aed_svg.svg" alt="Defibrillator Icon"
+            class="w-8 h-8" />
+          <span class="text-lg font-medium">Defibrillatoren</span>
+        </button>
+        <button data-category="postbox"
+          class="flex items-center gap-3 py-3 px-4 w-full rounded-md border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition">
+          <img src="https://wiki.openstreetmap.org/w/images/d/d4//Post_box-12.svg" alt="Postbox Icon" class="w-8 h-8" />
+          <span class="text-lg font-medium">Briefkästen</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -111,6 +121,10 @@
         document.getElementById('categoryModal').classList.add('hidden');
         startAppWithCategory();
       });
+    });
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('categoryModal').classList.add('hidden');
     });
 
     // --------------------------------------------------

@@ -1,96 +1,192 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
+
 <head>
   <meta charset="UTF-8" />
-  <title>Nearby Benches Map</title>
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet/dist/leaflet.css"
-  />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <title>Benches‑Plus Map</title>
+  <!-- Leaflet core -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Tailwind Play CDN → generates only the classes used in this file at runtime -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html, body { margin:0; padding:0; height:100%; }
-    #map { width:100%; height:100%; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    // 1. Initialize map
-    const map = L.map('map').setView([0, 0], 13);
-    L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { attribution: '&copy; OpenStreetMap contributors' }
-    ).addTo(map);
-
-    // 2. Define a bench icon (SVG from OSM Wiki, public domain)
-    const benchIcon = L.icon({
-      iconUrl: 'https://wiki.openstreetmap.org/w/images/6/60/Amenity_bench.svg',
-      iconSize:     [32, 32], // size of the icon
-      iconAnchor:   [16, 32], // point of the icon which will correspond to marker's location
-      popupAnchor:  [0, -32]  // point from which the popup should open relative to the icon anchor
-    });
-
-    // 3. Handle location found
-    function onLocationFound(position) {
-      const { latitude: lat, longitude: lng } = position.coords;
-      map.setView([lat, lng], 15);
-      L.circle([lat, lng], { radius: 25 }).addTo(map)
-        .bindPopup('You are here').openPopup();
-
-      // 4. Query Overpass for benches within 1.5 km for the given coordinates
-      queryBenches(lat, lng);
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
     }
 
-    function queryBenches(lat, lng) {
-       const overpassQuery = `
-        [out:json][timeout:25];
-        node["amenity"="bench"](around:1500,${lat},${lng});
-        out body;
-      `;
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body class="relative h-full">
+  <!-- Location‑denied hint (hidden by default) -->
+  <div id="locationHint"
+    class="hidden fixed top-2 inset-x-0 mx-auto w-max bg-yellow-100 text-yellow-900 text-sm py-1 px-3 rounded shadow z-[1001]">
+    Standort nicht verfügbar – bitte in die Karte tippen, um hier zu suchen
+  </div>
+
+  <!-- Full‑viewport map -->
+  <div id="map"></div>
+
+  <!-- Category selection modal -->
+  <div id="categoryModal" class="fixed inset-0 flex flex-col items-center justify-center bg-white/80 z-[1000]">
+    <h1 class="mb-4 text-xl font-semibold">Kategorie wählen</h1>
+    <div class="flex flex-col w-72 gap-2">
+      <button data-category="bench" class="flex items-center gap-3 py-4 px-6 w-full rounded-lg hover:bg-gray-100">
+        <img src="https://wiki.openstreetmap.org/w/images/6/60/Amenity_bench.svg" alt="Bench Icon" class="w-8 h-8" />
+        <span class="text-lg font-medium">Bänke</span>
+      </button>
+      <button data-category="glass" class="flex items-center gap-3 py-4 px-6 w-full rounded-lg hover:bg-gray-100">
+        <img src="https://wiki.openstreetmap.org/w/images/1/16/Recycling-16.svg" alt="Recycling Icon" class="w-8 h-8" />
+        <span class="text-lg font-medium">Altglas‑Container</span>
+      </button>
+      <button data-category="defib" class="flex items-center gap-3 py-4 px-6 w-full rounded-lg hover:bg-gray-100">
+        <img src="https://wiki.openstreetmap.org/w/images/2/2c/Emergency_aed_svg.svg" alt="Defibrillator Icon"
+          class="w-8 h-8" />
+        <span class="text-lg font-medium">Defibrillatoren</span>
+      </button>
+      <button data-category="postbox" class="flex items-center gap-3 py-4 px-6 w-full rounded-lg hover:bg-gray-100">
+        <img src="https://wiki.openstreetmap.org/w/images/d/d4//Post_box-12.svg" alt="Postbox Icon" class="w-8 h-8" />
+        <span class="text-lg font-medium">Briefkästen</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --------------------------------------------------
+    // 1. Leaflet map initialisation (blank view first)
+    // --------------------------------------------------
+    const map = L.map('map').setView([0, 0], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Layer group to easily clear old markers
+    const markersLayer = L.layerGroup().addTo(map);
+
+    // --------------------------------------------------
+    // 2. Category configuration object
+    // --------------------------------------------------
+    const categoryConfig = {
+      bench: {
+        overpass: 'node["amenity"="bench"]',
+        radius: 1500,
+        iconUrl: 'https://wiki.openstreetmap.org/w/images/6/60/Amenity_bench.svg',
+        label: 'Bank'
+      },
+      glass: {
+        overpass: 'node["amenity"="recycling"]["recycling:glass"="yes"]',
+        radius: 2000,
+        iconUrl: 'https://wiki.openstreetmap.org/w/images/1/16/Recycling-16.svg',
+        label: 'Altglas‑Container'
+      },
+      defib: {
+        overpass: 'node["emergency"="defibrillator"]',
+        radius: 3000,
+        iconUrl: 'https://wiki.openstreetmap.org/w/images/2/2c/Emergency_aed_svg.svg',
+        label: 'Defibrillator'
+      },
+      postbox: {
+        overpass: 'node["amenity"="post_box"]',
+        radius: 2000,
+        iconUrl: 'https://wiki.openstreetmap.org/w/images/d/d4//Post_box-12.svg',
+        label: 'Briefkasten'
+      }
+    };
+
+    let selectedKey = null; // holds the active category key
+
+    // --------------------------------------------------
+    // 3. Modal → category selection
+    // --------------------------------------------------
+    document.querySelectorAll('#categoryModal button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedKey = btn.dataset.category;
+        document.getElementById('categoryModal').classList.add('hidden');
+        startAppWithCategory();
+      });
+    });
+
+    // --------------------------------------------------
+    // 4. Geolocation flow + first automatic search
+    // --------------------------------------------------
+    function startAppWithCategory() {
+      if (!selectedKey) return;
+      const cfg = categoryConfig[selectedKey];
+      cfg.leafletIcon = L.icon({
+        iconUrl: cfg.iconUrl,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      });
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const { latitude: lat, longitude: lng } = pos.coords;
+            map.setView([lat, lng], 15);
+            L.circle([lat, lng], { radius: 25 }).addTo(map)
+              .bindPopup('You are here').openPopup();
+            queryPoints(lat, lng);
+          },
+          err => {
+            console.error('Location error:', err);
+            showLocationHint();
+          },
+          { enableHighAccuracy: true }
+        );
+      } else {
+        showLocationHint();
+      }
+    }
+
+    function showLocationHint() {
+      document.getElementById('locationHint').classList.remove('hidden');
+    }
+
+    // --------------------------------------------------
+    // 5. Map‑click search logic
+    // --------------------------------------------------
+    map.on('click', e => {
+      if (!selectedKey) return; // ignore clicks before category chosen
+      queryPoints(e.latlng.lat, e.latlng.lng);
+    });
+
+    function queryPoints(lat, lng) {
+      const cfg = categoryConfig[selectedKey];
+      const overpassQuery = `[out:json][timeout:25];${cfg.overpass}(around:${cfg.radius},${lat},${lng});out body;`;
+
       fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'data=' + encodeURIComponent(overpassQuery)
       })
         .then(res => res.json())
-        .then(data => addBenchesToMap(data.elements))
-        .catch(err => console.error('Overpass error:', err));      
-
+        .then(data => addPointsToMap(data.elements, cfg))
+        .catch(err => console.error('Overpass error:', err));
     }
 
-    function onLocationError(err) {
-      alert('Location error: ' + err.message);
-    }
-
-    // 5. Add bench markers with custom icon
-    function addBenchesToMap(elements) {
+    function addPointsToMap(elements, cfg) {
+      markersLayer.clearLayers();
       elements.forEach(el => {
         if (el.lat && el.lon) {
-          const name = el.tags?.name || 'Bench';
-          L.marker([el.lat, el.lon], { icon: benchIcon })
-            .addTo(map)
-            .bindPopup(name);
+          const name = el.tags?.name || cfg.label;
+          L.marker([el.lat, el.lon], { icon: cfg.leafletIcon })
+            .bindPopup(name)
+            .addTo(markersLayer);
         }
       });
     }
-
-    // 6. Request user location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        onLocationFound,
-        onLocationError,
-        { enableHighAccuracy: true }
-      );
-    } else {
-      alert('Geolocation not supported by your browser.');
-    }
-
-    // 7. Add a map click listener to query benches at the clicked location
-    map.on('click', function(e) {
-      queryBenches(e.latlng.lat, e.latlng.lng);
-    });
   </script>
+
+  <!-- optional support widget retained from original file -->
   <script src="https://unpkg.com/@csutil/support-bubble"></script>
 </body>
+
 </html>
